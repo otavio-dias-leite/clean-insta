@@ -1,22 +1,13 @@
-const ids = ["likesDone", "commentsDone"];
-const fill = document.getElementById("meterFill");
-const label = document.getElementById("meterLabel");
-function render() {
-  let done = 0;
-  ids.forEach(id => {
-    const input = document.getElementById(id);
-    input.checked = localStorage.getItem("clean-insta-" + id) === "true";
-    if (input.checked) done++;
-  });
-  fill.style.width = (done / ids.length * 100) + "%";
-  label.textContent = done + " de 2 concluídas";
-}
-ids.forEach(id => document.getElementById(id).addEventListener("change", event => {
-  localStorage.setItem("clean-insta-" + id, String(event.target.checked));
-  render();
-}));
-document.getElementById("reset").addEventListener("click", () => {
-  ids.forEach(id => localStorage.removeItem("clean-insta-" + id));
-  render();
-});
-render();
+const ids=["likesDone","commentsDone"],fill=document.getElementById("meterFill"),label=document.getElementById("meterLabel");
+let followers=[],following=[];
+function render(){let done=0;ids.forEach(id=>{const el=document.getElementById(id);el.checked=localStorage.getItem("clean-insta-"+id)==="true";if(el.checked)done++;});fill.style.width=(done/ids.length*100)+"%";label.textContent=done+" de 2 concluídas";}
+ids.forEach(id=>document.getElementById(id).addEventListener("change",e=>{localStorage.setItem("clean-insta-"+id,String(e.target.checked));render();}));
+document.getElementById("reset").addEventListener("click",()=>{ids.forEach(id=>localStorage.removeItem("clean-insta-"+id));render();});render();
+function extract(data){const entries=Array.isArray(data)?data:(data.relationships_following||data.relationships_followers||data.following||data.followers||[]);return entries.map(e=>{const x=e.string_list_data?.[0]||e;return String(x.value||x.username||e.title||"").replace(/^@/,"").trim();}).filter(Boolean);}
+const unique=a=>[...new Set(a.map(x=>x.toLowerCase()))].sort();
+function renderList(rootId,countId,accounts,searchId){const root=document.getElementById(rootId),q=document.getElementById(searchId).value.trim().toLowerCase().replace(/^@/,""),visible=accounts.filter(x=>x.includes(q));document.getElementById(countId).textContent=accounts.length+" "+(accounts.length===1?"conta":"contas");root.replaceChildren();if(!visible.length){const p=document.createElement("p");p.className="empty";p.textContent=accounts.length?"Nenhum resultado para essa busca.":"Nenhuma conta nesta lista.";root.append(p);return;}visible.forEach(user=>{const row=document.createElement("div");row.className="account-row";const label=document.createElement("label");label.className="account-name";const cb=document.createElement("input");cb.type="checkbox";cb.className="account-check";cb.value=user;const span=document.createElement("span");span.textContent="@"+user;label.append(cb,span);const a=document.createElement("a");a.href="https://www.instagram.com/"+encodeURIComponent(user)+"/";a.target="_blank";a.rel="noopener noreferrer";a.textContent="Abrir perfil ↗";row.append(label,a);root.append(row);});}
+function refresh(){renderList("notBackList","notBackCount",following.filter(x=>!followers.includes(x)),"notBackSearch");renderList("followingList","followingCount",following,"followingSearch");}
+document.getElementById("socialFiles").addEventListener("change",async e=>{let gotF=false,gotG=false;try{for(const file of e.target.files){const data=JSON.parse(await file.text()),name=file.name.toLowerCase();if(name.includes("follower")){followers=unique(extract(data));gotF=true;}else if(name.includes("following")){following=unique(extract(data));gotG=true;}}if(!gotF&&!gotG)throw Error("Selecione os arquivos originais followers_1.json e following.json.");refresh();document.getElementById("fileStatus").textContent=(gotF?followers.length+" seguidores carregados. ":"")+(gotG?following.length+" seguindo carregados. ":"")+(gotF&&gotG?"Comparação concluída.":"Selecione também o outro arquivo para completar a análise.");}catch(err){document.getElementById("fileStatus").textContent="Não foi possível ler os arquivos: "+err.message;}});
+["notBackSearch","followingSearch"].forEach(id=>document.getElementById(id).addEventListener("input",refresh));
+function selectAll(listId,buttonId){document.getElementById(buttonId).addEventListener("click",()=>{const checks=[...document.querySelectorAll("#"+listId+" .account-check")],all=checks.length&&checks.every(x=>x.checked);checks.forEach(x=>x.checked=!all);document.getElementById(buttonId).textContent=all?"Selecionar todos":"Desmarcar todos";});}
+selectAll("notBackList","selectNotBack");selectAll("followingList","selectFollowing");
